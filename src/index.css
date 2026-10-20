@@ -1,0 +1,210 @@
+:root {
+  --vellum: #F3EBDD;
+  --vellum-dark: #E4D7C2;
+  --vellum-card: rgba(243, 235, 221, 0.88);
+  --vellum-card-solid: #EFE6D6;
+  --vellum-border: rgba(155, 144, 124, 0.35);
+  --vellum-border-strong: rgba(155, 144, 124, 0.65);
+  --ink: #26251F;
+  --ink-faded: #575147;
+  --ink-muted: #847C70;
+  --graphite: #9B907C;
+  --brass: #A28A58;
+  --brass-hover: #8C7545;
+  --brass-glow: rgba(162, 138, 88, 0.25);
+  
+  --font-serif: 'Cormorant Garamond', Georgia, serif;
+  --font-display: 'Cinzel', 'Cormorant Garamond', Georgia, serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--vellum);
+  color: var(--ink);
+  font-family: var(--font-serif);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Custom Scrollbar for Specimen drawer */
+::-webkit-scrollbar {
+  width: 5px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(155, 144, 124, 0.1);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--graphite);
+  border-radius: 3px;
+}
+
+/* Antique Manuscript Buttons */
+.desk-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.95rem;
+  font-family: var(--font-display);
+  font-size: 0.76rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: var(--vellum-card);
+  border: 1px solid var(--vellum-border);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 8px rgba(38, 37, 31, 0.04);
+  user-select: none;
+}
+
+.desk-btn:hover {
+  background: var(--vellum-card-solid);
+  border-color: var(--brass);
+  color: var(--ink);
+  box-shadow: 0 4px 14px var(--brass-glow);
+  transform: translateY(-1px);
+}
+
+.desk-btn:active {
+  transform: translateY(0);
+  background: var(--vellum-dark);
+}
+
+.desk-btn-primary {
+  background: var(--ink);
+  color: var(--vellum);
+  border-color: var(--ink);
+}
+
+.desk-btn-primary:hover {
+  background: #36342D;
+  color: #FFF;
+  border-color: var(--brass);
+  box-shadow: 0 4px 16px rgba(38, 37, 31, 0.25);
+}
+
+.desk-btn-icon {
+  padding: 0.45rem;
+  width: 32px;
+  height: 32px;
+}
+
+/* Badge and Specimen Plate */
+.specimen-plate {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  color: var(--ink-faded);
+  border: 1px solid var(--vellum-border);
+  padding: 0.25rem 0.6rem;
+  border-radius: 2px;
+  background: rgba(243, 235, 221, 0.7);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+/* Manuscript Parchment Card */
+.manuscript-card {
+  background: var(--vellum-card);
+  border: 1px solid var(--vellum-border);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 10px 30px rgba(38, 37, 31, 0.06), 0 1px 3px rgba(38, 37, 31, 0.04);
+  border-radius: 4px;
+}
+
+/* Hairline Progress Scrubber */
+.scrubber-track {
+  width: 100%;
+  height: 2px;
+  background: rgba(155, 144, 124, 0.25);
+  position: relative;
+  cursor: pointer;
+  border-radius: 1px;
+}
+
+.scrubber-fill {
+  height: 100%;
+  background: var(--ink);
+  position: relative;
+  transition: width 0.08s linear;
+}
+
+.scrubber-thumb {
+  position: absolute;
+  right: -4px;
+  top: -4px;
+  width: 10px;
+  height: 10px;
+  background: var(--brass);
+  border: 1px solid var(--ink);
+  border-radius: 50%;
+  box-shadow: 0 0 4px var(--brass-glow);
+}
+
+/* Slider Input Styling */
+input[type="range"] {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 3px;
+  background: rgba(155, 144, 124, 0.35);
+  border-radius: 2px;
+  outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--ink);
+  border: 2px solid var(--vellum);
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  background: var(--brass);
+  transform: scale(1.2);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes pulseGlow {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 1; filter: drop-shadow(0 0 6px var(--brass)); }
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 3s ease-in-out infinite;
+}
