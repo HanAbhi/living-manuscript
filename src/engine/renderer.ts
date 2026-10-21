@@ -164,17 +164,18 @@ export class ManuscriptRenderer {
     }
 
     // 6. Render Nested Sub-Scene for The Infinite Passage
-    // When zooming in, child scene gradually reveals itself inside the core
-    if (childScene && camera.state.zoom > 1.8) {
-      const childAlpha = Math.min(1.0, (camera.state.zoom - 1.8) / 1.5);
+    // Smoothly cross-fades child scene inside medallion core as zoom increases
+    if (childScene && camera.state.zoom > 2.0) {
+      // Child alpha ramps gently from 0 at zoom=2.0 to 1.0 at zoom=5.5
+      const childAlpha = Math.min(1.0, Math.max(0, (camera.state.zoom - 2.0) / 3.5));
       ctx.save();
       ctx.globalAlpha = childAlpha;
 
-      // The child scene is nested inside the parent bindu
+      // The child scene is geometrically nested inside the parent medallion aperture
       const childScale = scene.radii[0] / childScene.maxRadius;
       ctx.scale(childScale, childScale);
 
-      // Render child ink strokes fully drawn
+      // Render child ink strokes
       for (const stroke of childScene.inkStrokes) {
         this.renderSingleStroke(ctx, stroke, 1.0, zoomScale * Math.sqrt(childScale));
       }

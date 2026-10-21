@@ -58,10 +58,13 @@ export const ArtCanvas: React.FC<ArtCanvasProps> = ({
   // Main animation frame loop
   useEffect(() => {
     let animId: number;
-    let lastTime = performance.now();
+    let lastTime = 0;
 
     const loop = (currentTime: number) => {
-      const dtMs = Math.min(currentTime - lastTime, 100);
+      if (!lastTime || currentTime < lastTime) {
+        lastTime = currentTime;
+      }
+      const dtMs = Math.max(0, Math.min(currentTime - lastTime, 100));
       lastTime = currentTime;
 
       const canvas = canvasRef.current;
@@ -85,7 +88,7 @@ export const ArtCanvas: React.FC<ArtCanvasProps> = ({
       } else if (!isPausedRef.current && progressRef.current < 1.0) {
         const baseDurationSec = 14.0;
         const progressDelta = (dtMs / 1000) * (1 / baseDurationSec) * settingsRef.current.drawingSpeed;
-        const nextProgress = Math.min(1.0, progressRef.current + progressDelta);
+        const nextProgress = Math.max(0.0, Math.min(1.0, progressRef.current + progressDelta));
         progressRef.current = nextProgress;
         onProgressUpdate(nextProgress);
 

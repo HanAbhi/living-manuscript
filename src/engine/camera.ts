@@ -4,6 +4,7 @@
  */
 
 import type { Point } from './geometry';
+import { SEAMLESS_ZOOM_RATIO } from './scene';
 
 export interface CameraState {
   x: number;
@@ -30,7 +31,7 @@ export const INITIAL_CAMERA_STATE: CameraState = {
 };
 
 export const MIN_ZOOM = 0.45;
-export const MAX_ZOOM_THRESHOLD = 5.0; // Trigger threshold for stepping into deeper nested scene
+export const MAX_ZOOM_THRESHOLD = SEAMLESS_ZOOM_RATIO; // Seamless mathematical transition threshold
 
 export class Camera {
   state: CameraState;
@@ -130,11 +131,11 @@ export class Camera {
     this.state.y += (this.state.targetY - this.state.y) * damping;
     this.state.zoom += (this.state.targetZoom - this.state.zoom) * damping;
 
-    // Check if camera crossed the deep scene threshold (e.g. 5.0x zoom)
+    // Check if camera crossed the deep scene threshold
     let crossedDepthThreshold = false;
-    if (this.state.zoom >= MAX_ZOOM_THRESHOLD) {
-      // Step into next nested depth layer: normalize zoom by factor
-      const scaleDown = 1 / 4.0;
+    if (this.state.zoom >= SEAMLESS_ZOOM_RATIO) {
+      // Step into next nested depth layer: normalize zoom by exact seamless ratio
+      const scaleDown = 1 / SEAMLESS_ZOOM_RATIO;
       this.state.zoom *= scaleDown;
       this.state.targetZoom *= scaleDown;
       this.state.x *= scaleDown;

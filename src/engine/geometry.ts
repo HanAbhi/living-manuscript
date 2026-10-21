@@ -213,6 +213,41 @@ export function reflectCommands(
 }
 
 /**
+ * Calculates a point on a quadratic Bézier curve at parameter t in [0, 1].
+ */
+export function evalQuadraticBezier(
+  p0: Point,
+  cp: Point,
+  p1: Point,
+  t: number
+): Point {
+  const mt = 1 - t;
+  return {
+    x: mt * mt * p0.x + 2 * mt * t * cp.x + t * t * p1.x,
+    y: mt * mt * p0.y + 2 * mt * t * cp.y + t * t * p1.y,
+  };
+}
+
+/**
+ * Subdivides a quadratic Bézier curve from t = 0 to t = splitT using de Casteljau's algorithm.
+ */
+export function sliceQuadraticBezier(
+  p0: Point,
+  cp: Point,
+  p1: Point,
+  splitT: number
+): { cp: Point; end: Point } {
+  const t = Math.max(0, Math.min(1, splitT));
+  const p01 = { x: p0.x + (cp.x - p0.x) * t, y: p0.y + (cp.y - p0.y) * t };
+  const p12 = { x: cp.x + (p1.x - cp.x) * t, y: cp.y + (p1.y - cp.y) * t };
+  const p012 = { x: p01.x + (p12.x - p01.x) * t, y: p01.y + (p12.y - p01.y) * t };
+  return {
+    cp: p01,
+    end: p012,
+  };
+}
+
+/**
  * Calculates a point on a cubic Bézier curve at parameter t in [0, 1].
  */
 export function evalCubicBezier(
@@ -282,13 +317,13 @@ export function approximatePathLength(commands: PathCommand[]): number {
         break;
       }
       case 'C': {
-        // Approximate cubic Bézier with 10 linear segments
+        // High-precision Riemann sum with 12 steps
         const p0 = currentPos;
         const cp1 = { x: cmd.cp1x, y: cmd.cp1y };
         const cp2 = { x: cmd.cp2x, y: cmd.cp2y };
         const p1 = { x: cmd.x, y: cmd.y };
         let prev = p0;
-        const steps = 10;
+        const steps = 12;
         for (let i = 1; i <= steps; i++) {
           const pt = evalCubicBezier(p0, cp1, cp2, p1, i / steps);
           length += Math.hypot(pt.x - prev.x, pt.y - prev.y);
@@ -298,19 +333,14 @@ export function approximatePathLength(commands: PathCommand[]): number {
         break;
       }
       case 'Q': {
-        // Quadratic approximated
+        // Consistent 12-step Riemann sum for quadratic curves
         const p0 = currentPos;
-        const p1 = { x: cmd.x, y: cmd.y };
         const cp = { x: cmd.cpx, y: cmd.cpy };
+        const p1 = { x: cmd.x, y: cmd.y };
         let prev = p0;
-        const steps = 8;
+        const steps = 12;
         for (let i = 1; i <= steps; i++) {
-          const t = i / steps;
-          const mt = 1 - t;
-          const pt = {
-            x: mt * mt * p0.x + 2 * mt * t * cp.x + t * t * p1.x,
-            y: mt * mt * p0.y + 2 * mt * t * cp.y + t * t * p1.y,
-          };
+          const pt = evalQuadraticBezier(p0, cp, p1, i / steps);
           length += Math.hypot(pt.x - prev.x, pt.y - prev.y);
           prev = pt;
         }
@@ -374,14 +404,13 @@ export function slicePathByProgress(
         break;
       }
       case 'C': {
-        // Approximate segment length
         const p0 = currentPos;
         const cp1 = { x: cmd.cp1x, y: cmd.cp1y };
         const cp2 = { x: cmd.cp2x, y: cmd.cp2y };
         const p1 = { x: cmd.x, y: cmd.y };
         let prev = p0;
         let segLen = 0;
-        const steps = 10;
+        const steps = 12;
         for (let i = 1; i <= steps; i++) {
           const pt = evalCubicBezier(p0, cp1, cp2, p1, i / steps);
           segLen += Math.hypot(pt.x - prev.x, pt.y - prev.y);
@@ -393,7 +422,7 @@ export function slicePathByProgress(
           accumulated += segLen;
           currentPos = p1;
         } else {
-          // Truncate cubic Bézier
+          // Truncate cubic Bézier using de Casteljau
           const remain = targetLength - accumulated;
           const splitT = segLen > 0 ? Math.max(0, Math.min(1, remain / segLen)) : 0;
           const sliced = sliceCubicBezier(p0, cp1, cp2, p1, splitT);
@@ -411,8 +440,36 @@ export function slicePathByProgress(
         break;
       }
       case 'Q': {
-        // Convert Q to L approximation if truncated
-        result.push(cmd);
+        const p0 = currentPos;
+        const cp = { x: cmd.cpx, y: cmd.cpy };
+        const p1 = { x: cmd.x, y: cmd.y };
+        let prev = p0;
+        let segLen = 0;
+        const steps = 12;
+        for (let i = 1; i <= steps; i++) {
+          const pt = evalQuadraticBezier(p0, cp, p1, i / steps);
+          segLen += Math.hypot(pt.x - prev.x, pt.y - prev.y);
+          prev = pt;
+        }
+
+        if (accumulated + segLen <= targetLength) {
+          result.push(cmd);
+          accumulated += segLen;
+          currentPos = p1;
+        } else {
+          // Truncate quadratic Bézier using de Casteljau
+          const remain = targetLength - accumulated;
+          const splitT = segLen > 0 ? Math.max(0, Math.min(1, remain / segLen)) : 0;
+          const sliced = sliceQuadraticBezier(p0, cp, p1, splitT);
+          result.push({
+            type: 'Q',
+            cpx: sliced.cp.x,
+            cpy: sliced.cp.y,
+            x: sliced.end.x,
+            y: sliced.end.y,
+          });
+          accumulated = targetLength;
+        }
         break;
       }
       case 'Z': {
@@ -420,6 +477,16 @@ export function slicePathByProgress(
         if (accumulated + segLen <= targetLength) {
           result.push(cmd);
           accumulated += segLen;
+          currentPos = { ...startPos };
+        } else {
+          const remain = targetLength - accumulated;
+          const t = segLen > 0 ? remain / segLen : 0;
+          const endPt = {
+            x: currentPos.x + (startPos.x - currentPos.x) * t,
+            y: currentPos.y + (startPos.y - currentPos.y) * t,
+          };
+          result.push({ type: 'L', x: endPt.x, y: endPt.y });
+          accumulated = targetLength;
         }
         break;
       }
@@ -430,45 +497,76 @@ export function slicePathByProgress(
 }
 
 /**
- * Adds subtle hand-drawn organic variation to simulate physical micron pen on vellum.
+ * Adds subtle hand-drawn organic variation to simulate physical micron pen on vellum,
+ * ensuring closed loops preserve topological continuity at origin seams.
  */
 export function addOrganicImperfection(
   commands: PathCommand[],
   prng: PRNG,
-  wobblePx = 0.35
+  wobblePx = 0.28
 ): PathCommand[] {
+  if (wobblePx <= 0) return commands;
+
+  let startOrigX = 0;
+  let startOrigY = 0;
+  let startJitterX = 0;
+  let startJitterY = 0;
+  let hasStart = false;
+
   return commands.map((cmd) => {
     switch (cmd.type) {
-      case 'M':
+      case 'M': {
+        const jx = prng.jitter(wobblePx * 0.4);
+        const jy = prng.jitter(wobblePx * 0.4);
+        if (!hasStart) {
+          startOrigX = cmd.x;
+          startOrigY = cmd.y;
+          startJitterX = jx;
+          startJitterY = jy;
+          hasStart = true;
+        }
         return {
           type: 'M',
-          x: cmd.x + prng.jitter(wobblePx * 0.4),
-          y: cmd.y + prng.jitter(wobblePx * 0.4),
+          x: cmd.x + jx,
+          y: cmd.y + jy,
         };
-      case 'L':
+      }
+      case 'L': {
+        const isClosedToStart = hasStart && Math.hypot(cmd.x - startOrigX, cmd.y - startOrigY) < 0.05;
+        const jx = isClosedToStart ? startJitterX : prng.jitter(wobblePx * 0.6);
+        const jy = isClosedToStart ? startJitterY : prng.jitter(wobblePx * 0.6);
         return {
           type: 'L',
-          x: cmd.x + prng.jitter(wobblePx),
-          y: cmd.y + prng.jitter(wobblePx),
+          x: cmd.x + jx,
+          y: cmd.y + jy,
         };
-      case 'C':
+      }
+      case 'C': {
+        const isClosedToStart = hasStart && Math.hypot(cmd.x - startOrigX, cmd.y - startOrigY) < 0.05;
+        const endJx = isClosedToStart ? startJitterX : prng.jitter(wobblePx * 0.6);
+        const endJy = isClosedToStart ? startJitterY : prng.jitter(wobblePx * 0.6);
         return {
           type: 'C',
-          cp1x: cmd.cp1x + prng.jitter(wobblePx * 0.8),
-          cp1y: cmd.cp1y + prng.jitter(wobblePx * 0.8),
-          cp2x: cmd.cp2x + prng.jitter(wobblePx * 0.8),
-          cp2y: cmd.cp2y + prng.jitter(wobblePx * 0.8),
-          x: cmd.x + prng.jitter(wobblePx),
-          y: cmd.y + prng.jitter(wobblePx),
+          cp1x: cmd.cp1x + prng.jitter(wobblePx * 0.5),
+          cp1y: cmd.cp1y + prng.jitter(wobblePx * 0.5),
+          cp2x: cmd.cp2x + prng.jitter(wobblePx * 0.5),
+          cp2y: cmd.cp2y + prng.jitter(wobblePx * 0.5),
+          x: cmd.x + endJx,
+          y: cmd.y + endJy,
         };
-      case 'Q':
+      }
+      case 'Q': {
+        const isClosedToStart = hasStart && Math.hypot(cmd.x - startOrigX, cmd.y - startOrigY) < 0.05;
+        const endJx = isClosedToStart ? startJitterX : prng.jitter(wobblePx * 0.5);
+        const endJy = isClosedToStart ? startJitterY : prng.jitter(wobblePx * 0.5);
         return {
           type: 'Q',
-          cpx: cmd.cpx + prng.jitter(wobblePx * 0.8),
-          cpy: cmd.cpy + prng.jitter(wobblePx * 0.8),
-          x: cmd.x + prng.jitter(wobblePx),
-          y: cmd.y + prng.jitter(wobblePx),
+          cpx: cmd.cpx + prng.jitter(wobblePx * 0.5),
+          cpy: cmd.cpy + prng.jitter(wobblePx * 0.5),
+          x: cmd.x + endJx,
+          y: cmd.y + endJy,
         };
+      }
       case 'Z':
         return { type: 'Z' };
     }

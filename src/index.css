@@ -1,17 +1,17 @@
 :root {
-  --vellum: #F3EBDD;
-  --vellum-dark: #E4D7C2;
-  --vellum-card: rgba(243, 235, 221, 0.88);
-  --vellum-card-solid: #EFE6D6;
-  --vellum-border: rgba(155, 144, 124, 0.35);
-  --vellum-border-strong: rgba(155, 144, 124, 0.65);
-  --ink: #26251F;
-  --ink-faded: #575147;
-  --ink-muted: #847C70;
-  --graphite: #9B907C;
-  --brass: #A28A58;
-  --brass-hover: #8C7545;
-  --brass-glow: rgba(162, 138, 88, 0.25);
+  --vellum: #FAF5ED;
+  --vellum-dark: #ECE4D6;
+  --vellum-card: rgba(250, 245, 237, 0.92);
+  --vellum-card-solid: #F5EFE5;
+  --vellum-border: rgba(148, 139, 122, 0.3);
+  --vellum-border-strong: rgba(148, 139, 122, 0.6);
+  --ink: #22211C;
+  --ink-faded: #544E44;
+  --ink-muted: #827A6E;
+  --graphite: #948B7A;
+  --brass: #9E834F;
+  --brass-hover: #856E3F;
+  --brass-glow: rgba(158, 131, 79, 0.15);
   
   --font-serif: 'Cormorant Garamond', Georgia, serif;
   --font-display: 'Cinzel', 'Cormorant Garamond', Georgia, serif;
@@ -81,7 +81,7 @@ html, body {
   background: var(--vellum-card-solid);
   border-color: var(--brass);
   color: var(--ink);
-  box-shadow: 0 4px 14px var(--brass-glow);
+  box-shadow: 0 2px 6px rgba(34, 33, 28, 0.08);
   transform: translateY(-1px);
 }
 
@@ -97,10 +97,10 @@ html, body {
 }
 
 .desk-btn-primary:hover {
-  background: #36342D;
+  background: #34322B;
   color: #FFF;
   border-color: var(--brass);
-  box-shadow: 0 4px 16px rgba(38, 37, 31, 0.25);
+  box-shadow: 0 2px 8px rgba(34, 33, 28, 0.18);
 }
 
 .desk-btn-icon {
@@ -190,6 +190,43 @@ input[type="range"]::-webkit-slider-thumb:hover {
   transform: scale(1.2);
 }
 
+/* Preset Pill Segmented Control */
+.preset-pill-group {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(148, 139, 122, 0.12);
+  border: 1px solid var(--vellum-border);
+  border-radius: 12px;
+  padding: 1px;
+  gap: 2px;
+}
+
+.preset-pill {
+  border: none;
+  background: transparent;
+  color: var(--ink-faded);
+  font-family: var(--font-display);
+  font-size: 0.65rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.18rem 0.55rem;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  user-select: none;
+}
+
+.preset-pill:hover {
+  color: var(--ink);
+  background: rgba(250, 245, 237, 0.8);
+}
+
+.preset-pill.active {
+  background: var(--ink);
+  color: var(--vellum);
+  box-shadow: 0 1px 3px rgba(34, 33, 28, 0.15);
+}
+
 /* Animations */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(6px); }
@@ -201,10 +238,10 @@ input[type="range"]::-webkit-slider-thumb:hover {
 }
 
 @keyframes pulseGlow {
-  0%, 100% { opacity: 0.8; }
-  50% { opacity: 1; filter: drop-shadow(0 0 6px var(--brass)); }
+  0%, 100% { opacity: 0.9; border-color: var(--ink); }
+  50% { opacity: 1; border-color: var(--brass); }
 }
 
 .animate-pulse-glow {
-  animation: pulseGlow 3s ease-in-out infinite;
+  animation: pulseGlow 2.5s ease-in-out infinite;
 }

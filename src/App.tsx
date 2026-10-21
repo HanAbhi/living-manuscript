@@ -3,13 +3,14 @@ import { ArtCanvas } from './components/ArtCanvas';
 import { ControlPanel } from './components/ControlPanel';
 import { SpecimenPanel, type SavedSpecimen } from './components/SpecimenPanel';
 import { SettingsModal, type AppSettings } from './components/SettingsModal';
-import { generateMandalaScene, type MandalaScene } from './engine/scene';
+import { generateMandalaScene, type MandalaScene, type CompositionPreset } from './engine/scene';
 import { Camera } from './engine/camera';
 import { AmbientAudioEngine } from './audio/ambient';
 import { downloadSVG } from './export/svg';
 import { downloadHighResPNG } from './export/png';
 
 const DEFAULT_SETTINGS: AppSettings = {
+  preset: 'ornate',
   sectors: 16,
   detailDensity: 1.0,
   drawingSpeed: 1.0,
@@ -43,8 +44,14 @@ export function App() {
   // Local storage initialization for settings
   const [settings, setSettings] = useState<AppSettings>(() => {
     try {
+      const params = new URLSearchParams(window.location.search);
+      const presetParam = params.get('preset') as CompositionPreset | null;
       const saved = localStorage.getItem('living_manuscript_settings');
-      return saved ? { ...DEFAULT_SETTINGS, ...JSON.parse(saved) } : DEFAULT_SETTINGS;
+      const base = saved ? { ...DEFAULT_SETTINGS, ...JSON.parse(saved) } : DEFAULT_SETTINGS;
+      if (presetParam && ['sparse', 'ornate', 'wild'].includes(presetParam)) {
+        base.preset = presetParam;
+      }
+      return base;
     } catch {
       return DEFAULT_SETTINGS;
     }
@@ -61,16 +68,34 @@ export function App() {
   });
 
   // Core drawing and camera state
-  const [seed, setSeed] = useState<string>('SPECIMEN-0001');
+  const [seed, setSeed] = useState<string>(() => {
+    try {
+      const s = new URLSearchParams(window.location.search).get('seed');
+      return s || 'SPECIMEN-0001';
+    } catch {
+      return 'SPECIMEN-0001';
+    }
+  });
   const [scene, setScene] = useState<MandalaScene>(() =>
     generateMandalaScene({
-      seed: 'SPECIMEN-0001',
+      seed: new URLSearchParams(window.location.search).get('seed') || 'SPECIMEN-0001',
       sectors: settings.sectors,
+      preset: settings.preset,
       detailDensity: settings.detailDensity,
     })
   );
 
-  const [progress, setProgress] = useState(0.0);
+  const [progress, setRawProgress] = useState(() => {
+    try {
+      const p = new URLSearchParams(window.location.search).get('progress');
+      return p !== null ? Math.max(0, Math.min(1, parseFloat(p))) : 0.0;
+    } catch {
+      return 0.0;
+    }
+  });
+  const setProgress = useCallback((val: number) => {
+    setRawProgress(Math.max(0.0, Math.min(1.0, val)));
+  }, []);
   const [isPaused, setIsPaused] = useState(false);
   const [isExploring, setIsExploring] = useState(false);
   const [zoom, setZoom] = useState(1.0);
@@ -81,7 +106,23 @@ export function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Engines
-  const cameraRef = useRef<Camera>(new Camera());
+  const cameraRef = useRef<Camera>(null!);
+  if (!cameraRef.current) {
+    const cam = new Camera();
+    try {
+      const z = new URLSearchParams(window.location.search).get('zoom');
+      if (z) {
+        const val = parseFloat(z);
+        if (!isNaN(val) && val > 0) {
+          cam.state.zoom = val;
+          cam.state.targetZoom = val;
+        }
+      }
+    } catch {
+      // Ignore
+    }
+    cameraRef.current = cam;
+  }
   const audioEngineRef = useRef<AmbientAudioEngine>(new AmbientAudioEngine());
 
   // Save settings on update
@@ -109,6 +150,7 @@ export function App() {
     const newScene = generateMandalaScene({
       seed: newSeed,
       sectors: settings.sectors,
+      preset: settings.preset,
       detailDensity: settings.detailDensity,
       depthLevel: 0,
     });
@@ -118,7 +160,7 @@ export function App() {
     setDepthLevel(0);
     cameraRef.current.reset();
     setIsExploring(false);
-  }, [settings.sectors, settings.detailDensity]);
+  }, [settings.sectors, settings.preset, settings.detailDensity]);
 
   // Play / Pause toggle
   const handleTogglePlay = useCallback(() => {
@@ -188,19 +230,37 @@ export function App() {
     setSpecimens((prev) => prev.filter((s) => s.id !== id));
   }, []);
 
+  // Switch Composition Preset directly
+  const handleSelectPreset = useCallback(
+    (newPreset: CompositionPreset) => {
+      setSettings((prev) => ({ ...prev, preset: newPreset }));
+      const regenerated = generateMandalaScene({
+        seed,
+        sectors: settings.sectors,
+        preset: newPreset,
+        detailDensity: settings.detailDensity,
+        depthLevel,
+      });
+      setScene(regenerated);
+    },
+    [seed, settings.sectors, settings.detailDensity, depthLevel]
+  );
+
   // Update Settings
   const handleUpdateSettings = useCallback(
     (newPartial: Partial<AppSettings>) => {
       setSettings((prev) => {
         const updated = { ...prev, ...newPartial };
-        // If sectors or density changed, regenerate scene
+        // If sectors, density, or preset changed, regenerate scene
         if (
           (newPartial.sectors && newPartial.sectors !== prev.sectors) ||
-          (newPartial.detailDensity && newPartial.detailDensity !== prev.detailDensity)
+          (newPartial.detailDensity && newPartial.detailDensity !== prev.detailDensity) ||
+          (newPartial.preset && newPartial.preset !== prev.preset)
         ) {
           const regenerated = generateMandalaScene({
             seed,
             sectors: updated.sectors,
+            preset: updated.preset,
             detailDensity: updated.detailDensity,
             depthLevel,
           });
@@ -326,6 +386,7 @@ export function App() {
         onResetCamera={handleResetCamera}
         onOpenSpecimens={() => setIsSpecimenOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        onSelectPreset={handleSelectPreset}
         onExportSVG={handleExportSVG}
         onExportPNG={handleExportPNG}
       />

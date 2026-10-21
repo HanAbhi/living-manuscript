@@ -1,8 +1,11 @@
+import type { FC } from 'react';
 import { Sliders, X } from 'lucide-react';
+import type { CompositionPreset } from '../engine/scene';
 
 export interface AppSettings {
+  preset: CompositionPreset; // 'sparse' | 'ornate' | 'wild'
   sectors: number; // 8, 12, 16, 24
-  detailDensity: number; // 0.7 to 1.4
+  detailDensity: number; // 0.6 to 1.4
   drawingSpeed: number; // 0.5 to 3.0
   paperGrain: boolean;
   guideMode: 'fade' | 'always' | 'hidden';
@@ -16,7 +19,7 @@ interface SettingsModalProps {
   onUpdateSettings: (newSettings: Partial<AppSettings>) => void;
 }
 
-export const SettingsModal: React.FC<SettingsModalProps> = ({
+export const SettingsModal: FC<SettingsModalProps> = ({
   isOpen,
   onClose,
   settings,
@@ -26,13 +29,32 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const sectorOptions = [8, 12, 16, 24];
 
+  const presets: { id: CompositionPreset; label: string; desc: string }[] = [
+    {
+      id: 'sparse',
+      label: 'Herbarium',
+      desc: 'Delicate solitary specimen with generous breathing space',
+    },
+    {
+      id: 'ornate',
+      label: 'Manuscript',
+      desc: 'Classical copperplate engraving with rich directional hatching',
+    },
+    {
+      id: 'wild',
+      label: 'Flourish',
+      desc: 'Botanical surrealism with spiraling tendrils & acanthus',
+    },
+  ];
+
   return (
     <div
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: 'rgba(38, 37, 31, 0.45)',
+        backgroundColor: 'rgba(34, 33, 28, 0.45)',
         backdropFilter: 'blur(4px)',
+        WebkitBackdropFilter: 'blur(4px)',
         zIndex: 210,
         display: 'flex',
         alignItems: 'center',
@@ -45,11 +67,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         className="manuscript-card animate-fade-in"
         style={{
           width: '100%',
-          maxWidth: '460px',
+          maxWidth: '480px',
+          maxHeight: '90vh',
+          overflowY: 'auto',
           padding: '1.75rem',
           backgroundColor: '#FAF5ED',
           border: '1px solid var(--vellum-border-strong)',
-          boxShadow: '0 12px 40px rgba(38, 37, 31, 0.2)',
+          boxShadow: '0 12px 36px rgba(34, 33, 28, 0.16)',
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -65,11 +89,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Sliders size={18} color="var(--brass)" />
+            <Sliders size={17} color="var(--brass)" />
             <h2
               style={{
                 fontFamily: 'var(--font-display)',
-                fontSize: '1rem',
+                fontSize: '0.98rem',
                 letterSpacing: '0.08em',
                 color: 'var(--ink)',
                 margin: 0,
@@ -83,19 +107,73 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             className="desk-btn desk-btn-icon"
             aria-label="Close settings"
           >
-            <X size={16} />
+            <X size={15} />
           </button>
         </div>
 
         {/* Content */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.35rem' }}>
+          {/* Creative Composition Preset */}
+          <div>
+            <label
+              style={{
+                display: 'block',
+                fontFamily: 'var(--font-display)',
+                fontSize: '0.72rem',
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                color: 'var(--ink)',
+                marginBottom: '0.45rem',
+              }}
+            >
+              Composition Aesthetic
+            </label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+              {presets.map((p) => {
+                const isActive = settings.preset === p.id;
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => onUpdateSettings({ preset: p.id })}
+                    className={`desk-btn ${isActive ? 'desk-btn-primary' : ''}`}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'flex-start',
+                      padding: '0.55rem 0.85rem',
+                      gap: '0.15rem',
+                      textAlign: 'left',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                      <span style={{ fontWeight: 600, letterSpacing: '0.06em' }}>{p.label}</span>
+                      {isActive && <span style={{ fontSize: '0.62rem', color: 'var(--brass-light)' }}>ACTIVE</span>}
+                    </div>
+                    <span
+                      style={{
+                        fontSize: '0.66rem',
+                        fontFamily: 'var(--font-serif)',
+                        fontStyle: 'italic',
+                        opacity: isActive ? 0.9 : 0.7,
+                        textTransform: 'none',
+                        letterSpacing: 'normal',
+                      }}
+                    >
+                      {p.desc}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Radial Symmetry Sectors */}
           <div>
             <label
               style={{
                 display: 'block',
                 fontFamily: 'var(--font-display)',
-                fontSize: '0.74rem',
+                fontSize: '0.72rem',
                 letterSpacing: '0.06em',
                 textTransform: 'uppercase',
                 color: 'var(--ink)',
@@ -126,7 +204,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 justifyContent: 'space-between',
                 marginBottom: '0.35rem',
                 fontFamily: 'var(--font-display)',
-                fontSize: '0.74rem',
+                fontSize: '0.72rem',
                 letterSpacing: '0.06em',
                 textTransform: 'uppercase',
                 color: 'var(--ink)',
@@ -167,13 +245,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 justifyContent: 'space-between',
                 marginBottom: '0.35rem',
                 fontFamily: 'var(--font-display)',
-                fontSize: '0.74rem',
+                fontSize: '0.72rem',
                 letterSpacing: '0.06em',
                 textTransform: 'uppercase',
                 color: 'var(--ink)',
               }}
             >
-              <span>Detail & Stippling Density</span>
+              <span>Engraving Density & Hatching</span>
               <span style={{ fontFamily: 'var(--font-mono)' }}>
                 {Math.round(settings.detailDensity * 100)}%
               </span>
@@ -194,14 +272,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               style={{
                 display: 'block',
                 fontFamily: 'var(--font-display)',
-                fontSize: '0.74rem',
+                fontSize: '0.72rem',
                 letterSpacing: '0.06em',
                 textTransform: 'uppercase',
                 color: 'var(--ink)',
                 marginBottom: '0.4rem',
               }}
             >
-              Graphite Compass Guides
+              Compass & Ray Construction Guides
             </label>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               {(
@@ -260,7 +338,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 fontSize: '0.78rem',
               }}
             >
-              <span>Reduced Motion (Instant Drawing)</span>
+              <span>Reduced Motion (Instant Render)</span>
               <input
                 type="checkbox"
                 checked={settings.reducedMotion}

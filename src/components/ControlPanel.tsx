@@ -14,6 +14,7 @@ import {
 import { AmbientAudioEngine } from '../audio/ambient';
 import { AudioControls } from './AudioControls';
 import type { AppSettings } from './SettingsModal';
+import type { CompositionPreset } from '../engine/scene';
 
 interface ControlPanelProps {
   seed: string;
@@ -35,6 +36,7 @@ interface ControlPanelProps {
   onResetCamera: () => void;
   onOpenSpecimens: () => void;
   onOpenSettings: () => void;
+  onSelectPreset?: (preset: CompositionPreset) => void;
   onExportSVG: () => void;
   onExportPNG: () => void;
 }
@@ -48,6 +50,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
   zoom,
   depthLevel,
   totalSpecimens,
+  settings,
   audioEngine,
   onTogglePlay,
   onRewind,
@@ -58,6 +61,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
   onResetCamera,
   onOpenSpecimens,
   onOpenSettings,
+  onSelectPreset,
   onExportSVG,
   onExportPNG,
 }) => {
@@ -113,6 +117,8 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
               <span>SPECIMEN {seed.slice(0, 10).toUpperCase()}</span>
               <span style={{ color: 'var(--vellum-border-strong)' }}>|</span>
               <span>{sectors}-FOLD SYMMETRY</span>
+              <span style={{ color: 'var(--vellum-border-strong)' }}>|</span>
+              <span style={{ color: 'var(--brass)', fontWeight: 600 }}>{settings.preset.toUpperCase()}</span>
             </div>
             {depthLevel > 0 && (
               <div
@@ -205,13 +211,35 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
               fontSize: '0.68rem',
               fontFamily: 'var(--font-mono)',
               color: 'var(--ink-faded)',
+              gap: '0.5rem',
+              flexWrap: 'wrap',
             }}
           >
             <span>
               {progress >= 1.0
-                ? '◆ INK CURED · COMPOSITION COMPLETE'
-                : `◆ INKING IN PROGRESS · ${Math.round(progress * 100)}%`}
+                ? '◆ INK CURED · COMPLETED'
+                : `◆ INKING · ${Math.max(0, Math.min(100, Math.round(progress * 100)))}%`}
             </span>
+
+            {/* Classical Composition Presets Pill Group */}
+            <div className="preset-pill-group" role="group" aria-label="Composition Style Presets">
+              {(['sparse', 'ornate', 'wild'] as const).map((p) => {
+                const labels = { sparse: 'Herbarium', ornate: 'Manuscript', wild: 'Flourish' };
+                const isActive = settings.preset === p;
+                return (
+                  <button
+                    key={p}
+                    type="button"
+                    className={`preset-pill ${isActive ? 'active' : ''}`}
+                    onClick={() => onSelectPreset?.(p)}
+                    title={`Switch to ${labels[p]} composition preset`}
+                  >
+                    {labels[p]}
+                  </button>
+                );
+              })}
+            </div>
+
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
               <span>SCALE: {zoom.toFixed(2)}x</span>
               <button
