@@ -10,6 +10,7 @@ import {
   Sliders,
   Maximize2,
   ChevronDown,
+  BookOpen,
 } from 'lucide-react';
 import { AmbientAudioEngine } from '../audio/ambient';
 import { AudioControls } from './AudioControls';
@@ -145,26 +146,25 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
           <button
             onClick={onOpenSpecimens}
             className="desk-btn"
-            title="View saved specimens"
-            style={{ position: 'relative' }}
+            title="Open The Herbarium Journal (H)"
+            style={{ position: 'relative', gap: '0.45rem' }}
           >
-            <Bookmark size={14} color="var(--brass)" />
-            <span style={{ display: 'none' }}>Specimens</span>
-            <span>Archive</span>
-            {totalSpecimens > 0 && (
-              <span
-                style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '0.62rem',
-                  background: 'var(--ink)',
-                  color: 'var(--vellum)',
-                  padding: '0.05rem 0.35rem',
-                  borderRadius: '10px',
-                }}
-              >
-                {totalSpecimens}
-              </span>
-            )}
+            <BookOpen size={14} color="var(--brass)" />
+            <span>Herbarium</span>
+            <span
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.62rem',
+                background: totalSpecimens > 0 ? 'var(--ink)' : 'transparent',
+                color: totalSpecimens > 0 ? 'var(--vellum)' : 'var(--ink-muted)',
+                border: totalSpecimens > 0 ? 'none' : '1px solid var(--vellum-border)',
+                padding: '0.05rem 0.35rem',
+                borderRadius: '10px',
+                letterSpacing: '0.04em',
+              }}
+            >
+              {totalSpecimens.toString().padStart(2, '0')}
+            </span>
           </button>
 
           <button
@@ -327,9 +327,9 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
             <button
               onClick={onSaveSpecimen}
               className="desk-btn"
-              title="Bookmark Specimen to Archive (S)"
+              title="Inscribe Specimen into Herbarium (S)"
             >
-              <Bookmark size={13} />
+              <Bookmark size={13} color="var(--brass)" />
               <span>Keep</span>
             </button>
 

@@ -1,7 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { ArtCanvas } from './components/ArtCanvas';
 import { ControlPanel } from './components/ControlPanel';
-import { SpecimenPanel, type SavedSpecimen } from './components/SpecimenPanel';
+import { HerbariumModal } from './components/Herbarium/HerbariumModal';
+import {
+  loadHerbariumJournal,
+  saveHerbariumJournal,
+  determineMotifFamily,
+  generateBotanicalTitle,
+  type HerbariumJournalData,
+  type HerbariumSpecimen,
+} from './types/herbarium';
 import { SettingsModal, type AppSettings } from './components/SettingsModal';
 import { generateMandalaScene, type MandalaScene, type CompositionPreset } from './engine/scene';
 import { Camera } from './engine/camera';
@@ -57,15 +65,28 @@ export function App() {
     }
   });
 
-  // Local storage initialization for bookmarked specimens
-  const [specimens, setSpecimens] = useState<SavedSpecimen[]>(() => {
-    try {
-      const saved = localStorage.getItem('living_manuscript_specimens');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
+  // Herbarium Journal storage and active record state
+  const [journal, setJournal] = useState<HerbariumJournalData>(() => loadHerbariumJournal());
+  const [initialSpecimenId, setInitialSpecimenId] = useState<string | null>(null);
+  const [saveToast, setSaveToast] = useState<{
+    specimen: HerbariumSpecimen;
+    visible: boolean;
+  } | null>(null);
+
+  // Auto-persist Herbarium journal
+  useEffect(() => {
+    saveHerbariumJournal(journal);
+  }, [journal]);
+
+  // Auto-dismiss save notification toast
+  useEffect(() => {
+    if (saveToast?.visible) {
+      const timer = setTimeout(() => {
+        setSaveToast(null);
+      }, 4200);
+      return () => clearTimeout(timer);
     }
-  });
+  }, [saveToast]);
 
   // Core drawing and camera state
   const [seed, setSeed] = useState<string>(() => {
@@ -102,7 +123,13 @@ export function App() {
   const [depthLevel, setDepthLevel] = useState(0);
 
   // Modals
-  const [isSpecimenOpen, setIsSpecimenOpen] = useState(false);
+  const [isSpecimenOpen, setIsSpecimenOpen] = useState(() => {
+    try {
+      return new URLSearchParams(window.location.search).get('herbarium') === '1';
+    } catch {
+      return false;
+    }
+  });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Engines
@@ -134,14 +161,7 @@ export function App() {
     }
   }, [settings]);
 
-  // Save specimens on update
-  useEffect(() => {
-    try {
-      localStorage.setItem('living_manuscript_specimens', JSON.stringify(specimens));
-    } catch {
-      // Ignore
-    }
-  }, [specimens]);
+
 
   // Generation of new seed
   const handleNewSeed = useCallback(() => {
@@ -191,44 +211,62 @@ export function App() {
     setZoom(1.0);
   }, []);
 
-  // Save Specimen Bookmark
+  // Inscribe Specimen into Herbarium
   const handleSaveSpecimen = useCallback(() => {
-    const newSpecimen: SavedSpecimen = {
-      id: `${seed}-${Date.now()}`,
+    const family = determineMotifFamily(scene.motifs);
+    const nextNumber = journal.specimens.length + 1;
+    const title = generateBotanicalTitle(seed, family, nextNumber);
+
+    const newSpecimen: HerbariumSpecimen = {
+      id: `herb-${seed}-${Date.now()}`,
+      specimenNumber: nextNumber,
       seed,
       sectors: scene.sectors,
+      preset: settings.preset,
+      detailDensity: settings.detailDensity,
       motifs: scene.motifs,
+      family,
+      title,
+      notes: '',
       timestamp: Date.now(),
+      isFavorite: false,
     };
-    setSpecimens((prev) => [newSpecimen, ...prev.filter((s) => s.seed !== seed)]);
-    setIsSpecimenOpen(true);
-  }, [seed, scene.sectors, scene.motifs]);
 
-  // Load Saved Specimen
+    setJournal((prev) => ({
+      ...prev,
+      specimens: [newSpecimen, ...prev.specimens],
+    }));
+
+    setSaveToast({ specimen: newSpecimen, visible: true });
+    audioEngineRef.current.playRingChime(1);
+  }, [seed, scene.sectors, scene.motifs, settings.preset, settings.detailDensity, journal.specimens.length]);
+
+  // Load Saved Specimen with EXACT Original Generation Settings
   const handleLoadSpecimen = useCallback(
-    (specimen: SavedSpecimen) => {
+    (specimen: HerbariumSpecimen) => {
       setSeed(specimen.seed);
-      setSettings((prev) => ({ ...prev, sectors: specimen.sectors }));
-      const newScene = generateMandalaScene({
+      setSettings((prev) => ({
+        ...prev,
+        sectors: specimen.sectors,
+        preset: specimen.preset,
+        detailDensity: specimen.detailDensity,
+      }));
+      const restoredScene = generateMandalaScene({
         seed: specimen.seed,
         sectors: specimen.sectors,
-        detailDensity: settings.detailDensity,
+        preset: specimen.preset,
+        detailDensity: specimen.detailDensity,
         depthLevel: 0,
       });
-      setScene(newScene);
-      setProgress(0.0);
-      setIsPaused(false);
+      setScene(restoredScene);
+      setProgress(1.0); // Reveal restored composition in full glory
+      setIsPaused(true);
       setDepthLevel(0);
       cameraRef.current.reset();
       setIsExploring(false);
     },
-    [settings.detailDensity]
+    [setProgress]
   );
-
-  // Delete Specimen
-  const handleDeleteSpecimen = useCallback((id: string) => {
-    setSpecimens((prev) => prev.filter((s) => s.id !== id));
-  }, []);
 
   // Switch Composition Preset directly
   const handleSelectPreset = useCallback(
@@ -320,6 +358,10 @@ export function App() {
           e.preventDefault();
           handleSaveSpecimen();
           break;
+        case 'KeyH':
+          e.preventDefault();
+          setIsSpecimenOpen((prev) => !prev);
+          break;
         case 'Escape':
           setIsSpecimenOpen(false);
           setIsSettingsOpen(false);
@@ -374,7 +416,7 @@ export function App() {
         isExploring={isExploring}
         zoom={zoom}
         depthLevel={depthLevel}
-        totalSpecimens={specimens.length}
+        totalSpecimens={journal.specimens.length}
         settings={settings}
         audioEngine={audioEngineRef.current}
         onTogglePlay={handleTogglePlay}
@@ -384,21 +426,91 @@ export function App() {
         onSaveSpecimen={handleSaveSpecimen}
         onScrubProgress={setProgress}
         onResetCamera={handleResetCamera}
-        onOpenSpecimens={() => setIsSpecimenOpen(true)}
+        onOpenSpecimens={() => {
+          setInitialSpecimenId(null);
+          setIsSpecimenOpen(true);
+        }}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onSelectPreset={handleSelectPreset}
         onExportSVG={handleExportSVG}
         onExportPNG={handleExportPNG}
       />
 
-      {/* Saved Specimens Drawer */}
-      <SpecimenPanel
+      {/* The Herbarium Journal Modal */}
+      <HerbariumModal
         isOpen={isSpecimenOpen}
-        onClose={() => setIsSpecimenOpen(false)}
-        specimens={specimens}
+        onClose={() => {
+          setIsSpecimenOpen(false);
+          setInitialSpecimenId(null);
+        }}
+        journal={journal}
         onLoadSpecimen={handleLoadSpecimen}
-        onDeleteSpecimen={handleDeleteSpecimen}
+        onUpdateJournal={setJournal}
+        initialSpecimenId={initialSpecimenId}
       />
+
+      {/* Archival Save Confirmation Toast */}
+      {saveToast?.visible && (
+        <div
+          className="manuscript-card animate-fade-in"
+          style={{
+            position: 'absolute',
+            bottom: '6.4rem',
+            right: '1.5rem',
+            padding: '0.65rem 1rem',
+            zIndex: 80,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+            backgroundColor: '#FAF5ED',
+            border: '1px solid var(--brass)',
+            boxShadow: '0 4px 18px rgba(34, 33, 28, 0.12)',
+          }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.62rem',
+                letterSpacing: '0.12em',
+                color: 'var(--brass-hover)',
+                textTransform: 'uppercase',
+                fontWeight: 600,
+              }}
+            >
+              ◆ Inscribed in The Herbarium
+            </span>
+            <span
+              style={{
+                fontFamily: 'var(--font-serif)',
+                fontSize: '0.88rem',
+                fontStyle: 'italic',
+                color: 'var(--ink)',
+              }}
+            >
+              Tab. {saveToast.specimen.specimenNumber.toString().padStart(2, '0')} · {saveToast.specimen.title}
+            </span>
+          </div>
+
+          <button
+            onClick={() => {
+              setInitialSpecimenId(saveToast.specimen.id);
+              setIsSpecimenOpen(true);
+              setSaveToast(null);
+            }}
+            className="desk-btn"
+            style={{
+              padding: '0.25rem 0.65rem',
+              fontSize: '0.68rem',
+              background: 'var(--ink)',
+              color: 'var(--vellum)',
+              borderColor: 'var(--ink)',
+            }}
+          >
+            Open Journal
+          </button>
+        </div>
+      )}
 
       {/* Settings Modal */}
       <SettingsModal
